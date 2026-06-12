@@ -262,18 +262,12 @@ export default function IntegrationsPage() {
               </div>
               <div className="code-console p-4 overflow-auto max-h-80">
                 <pre className="text-[11px] mono leading-relaxed">
-                  {(activeTab === 'javascript' ? JS_SNIPPET : PYTHON_SNIPPET).split('\n').map((line, i) => {
-                    const highlighted = line
-                      .replace(/(import|from|await|const|=|async|def|class)/g, '<span class="text-secondary font-bold">$1</span>')
-                      .replace(/("(?:[^"\\]|\\.)*")/g, '<span class="text-status-low">$1</span>')
-                      .replace(/(\/\/[^\n]*)/g, '<span class="text-muted-foreground italic">$1</span>');
-                    return (
-                      <div key={i} className="flex gap-3">
-                        <span className="text-muted-foreground/40 w-5 shrink-0 text-right select-none">{i + 1}</span>
-                        <span dangerouslySetInnerHTML={{ __html: highlighted }} />
-                      </div>
-                    );
-                  })}
+                  {(activeTab === 'javascript' ? JS_SNIPPET : PYTHON_SNIPPET).split('\n').map((line, i) => (
+                    <div key={i} className="flex gap-3">
+                      <span className="text-muted-foreground/40 w-5 shrink-0 text-right select-none">{i + 1}</span>
+                      <code className="text-foreground">{line}</code>
+                    </div>
+                  ))}
                 </pre>
               </div>
             </div>

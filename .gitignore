@@ -13,6 +13,7 @@ dist-ssr
 output
 *.local
 package-lock.json
+.vercel
 
 # Editor directories and files
 .vscode/*
