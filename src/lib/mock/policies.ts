@@ -1,0 +1,52 @@
+import type { Policy } from '../types';
+
+export const mockPolicies: Policy[] = [
+  {
+    policyId: 'refund.amount.limit',
+    name: 'Refund Amount Limit',
+    rule: 'amount <= 500',
+    configuredLimit: 500,
+    severity: 'CRITICAL',
+    category: 'Finance',
+    description: 'Agent cannot process refunds exceeding $500 without explicit human approval.',
+    triggeredCount: 47,
+  },
+  {
+    policyId: 'data.exfiltration.prevention',
+    name: 'Data Exfiltration Prevention',
+    rule: 'destination in approved_endpoints',
+    configuredLimit: 'approved_endpoints whitelist',
+    severity: 'CRITICAL',
+    category: 'Security',
+    description: 'Prevents agents from transmitting data to unapproved external endpoints.',
+    triggeredCount: 12,
+  },
+  {
+    policyId: 'hipaa.health.data.access',
+    name: 'HIPAA Health Data Access Control',
+    rule: 'accessor.role in ["medical_staff", "compliance_officer"]',
+    severity: 'HIGH',
+    category: 'Compliance',
+    description: 'Health record access requires approved role and explicit audit logging.',
+    triggeredCount: 23,
+  },
+  {
+    policyId: 'kyc.document.fraud.threshold',
+    name: 'KYC Document Fraud Threshold',
+    rule: 'fraud_score < 0.75',
+    configuredLimit: 0.75,
+    severity: 'HIGH',
+    category: 'Compliance',
+    description: 'Documents with fraud score above 0.75 are automatically flagged for manual review.',
+    triggeredCount: 31,
+  },
+  {
+    policyId: 'hr.record.access.audit',
+    name: 'HR Record Access Audit',
+    rule: 'access.logged = true',
+    severity: 'MEDIUM',
+    category: 'HR',
+    description: 'All access to HR records must be logged with requester identity and purpose.',
+    triggeredCount: 156,
+  },
+];
