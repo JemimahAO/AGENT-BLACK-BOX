@@ -89,9 +89,45 @@ export default function RunReplayPage() {
   const [replayIdx, setReplayIdx] = useState(-1);
   const [copied, setCopied] = useState(false);
   const [auditGenerated, setAuditGenerated] = useState(false);
+  const [events, setEvents] = useState(mockReplayEvents);
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const selectedEvent: TimelineEvent = mockReplayEvents[selectedIdx];
+  useEffect(() => {
+    // Try to fetch events from API on component mount
+    const fetchEvents = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const response = await fetch('/api/events?runId=run_8f3a1a2b');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ok && data.events && data.events.length > 0) {
+            // Transform API events to match TimelineEvent format
+            const transformedEvents = data.events.map((evt: any) => ({
+              ...evt,
+              label: evt.eventType.replace(/_/g, ' '),
+              description: evt.detail || evt.message || '',
+              duration: 0,
+            }));
+            setEvents(transformedEvents);
+            setIsLiveMode(data.mode === 'live');
+            toast.info(data.mode === 'live' ? 'Live DynamoDB Ledger' : 'Mock Mode', {
+              description: `Loaded ${transformedEvents.length} events`,
+            });
+          }
+        }
+      } catch (error) {
+        console.log('[v0] Failed to fetch events, using mock data:', error);
+      } finally {
+        setIsLoadingEvents(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  const selectedEvent: TimelineEvent = events[selectedIdx];
   const isActionAttempted = selectedEvent.eventType === 'ACTION_ATTEMPTED';
 
   const startReplay = () => {
@@ -105,18 +141,18 @@ export default function RunReplayPage() {
     if (isReplaying && replayIdx >= 0) {
       replayRef.current = setTimeout(() => {
         const nextIdx = replayIdx + 1;
-        if (nextIdx < mockReplayEvents.length) {
+        if (nextIdx < events.length) {
           setSelectedIdx(nextIdx);
           setReplayIdx(nextIdx);
         } else {
           setIsReplaying(false);
           setReplayIdx(-1);
-          toast.success('Replay complete', { description: 'All 13 events replayed.' });
+          toast.success('Replay complete', { description: `All ${events.length} events replayed.` });
         }
       }, 800);
     }
     return () => { if (replayRef.current) clearTimeout(replayRef.current); };
-  }, [isReplaying, replayIdx]);
+  }, [isReplaying, replayIdx, events.length]);
 
   const handleCopy = () => {
     setCopied(true);
@@ -151,6 +187,14 @@ export default function RunReplayPage() {
                   </span>
                   <span className="text-[9px] font-mono text-muted-foreground border border-border bg-muted/40 px-2 py-0.5 rounded">
                     run_8f3a1a2b
+                  </span>
+                  <span className={cn(
+                    'text-[9px] font-black uppercase tracking-widest border px-2 py-0.5 rounded',
+                    isLiveMode
+                      ? 'border-status-low/40 bg-status-low/12 text-status-low'
+                      : 'border-primary/40 bg-primary/12 text-primary'
+                  )}>
+                    {isLiveMode ? 'Live DynamoDB Ledger' : 'Mock Mode'}
                   </span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-black text-foreground text-balance mb-3 leading-snug">
@@ -227,7 +271,7 @@ export default function RunReplayPage() {
               {/* Vertical glow line */}
               <div className="absolute left-[26px] top-0 bottom-0 w-px timeline-line-glow" />
               <div className="py-1.5 space-y-0">
-                {mockReplayEvents.map((evt, idx) => {
+                {events.map((evt, idx) => {
                   const isSelected = idx === selectedIdx;
                   const isActive = isReplaying && idx === replayIdx;
                   const isCrit = evt.riskLevel === 'CRITICAL';

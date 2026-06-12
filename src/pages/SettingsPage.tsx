@@ -38,6 +38,47 @@ const API_ROUTES = [
 export default function SettingsPage() {
   const [seeded, setSeeded] = useState(false);
   const [cleared, setCleared] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [seedLoading, setSeedLoading] = useState(false);
+
+  const handleTestConnection = async () => {
+    setHealthLoading(true);
+    try {
+      const response = await fetch('/api/health');
+      const data = await response.json();
+      setHealthStatus(data);
+      if (data.ok) {
+        toast.success('Connection successful', { description: `Connected to ${data.table} in ${data.region}` });
+      } else {
+        toast.info(data.error || 'Running in mock mode', { description: data.message });
+      }
+    } catch (error) {
+      toast.error('Connection failed', { description: error instanceof Error ? error.message : String(error) });
+      setHealthStatus({ ok: false, mode: 'mock', error: 'Network error' });
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  const handleSeedDynamoDB = async () => {
+    setSeedLoading(true);
+    try {
+      const response = await fetch('/api/seed', { method: 'POST' });
+      const data = await response.json();
+      if (data.ok) {
+        setSeeded(true);
+        toast.success('Demo data seeded', { description: `${data.seeded} events loaded for run ${data.runId}` });
+        setTimeout(() => setSeeded(false), 3000);
+      } else {
+        toast.info('Seed request sent', { description: data.message });
+      }
+    } catch (error) {
+      toast.error('Seed failed', { description: error instanceof Error ? error.message : String(error) });
+    } finally {
+      setSeedLoading(false);
+    }
+  };
 
   const handleSeed = () => {
     setSeeded(true);
@@ -102,7 +143,7 @@ export default function SettingsPage() {
                     { label: 'AWS Region', value: 'us-east-1' },
                     { label: 'GSI Count', value: '3 (Agent, Risk, Approval)' },
                     { label: 'Billing Mode', value: 'PAY_PER_REQUEST' },
-                    { label: 'Last Write', value: 'Mock data only' },
+                    { label: 'Last Write', value: healthStatus?.lastChecked ? new Date(healthStatus.lastChecked).toLocaleTimeString() : 'Never' },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex justify-between gap-2 text-xs py-1.5 border-b border-border/20 last:border-0">
                       <span className="text-muted-foreground">{label}</span>
@@ -110,6 +151,15 @@ export default function SettingsPage() {
                     </div>
                   ))}
                 </div>
+
+                <Button
+                  onClick={handleTestConnection}
+                  disabled={healthLoading}
+                  className="w-full mt-3 bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 font-bold"
+                >
+                  {healthLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                  {healthLoading ? 'Testing...' : 'Test DynamoDB Connection'}
+                </Button>
               </div>
             </div>
 
@@ -125,19 +175,34 @@ export default function SettingsPage() {
                 <div className="text-xs text-muted-foreground leading-relaxed">
                   Seed or reset the local demo data used in Command Center, Run Replay, and Approvals.
                 </div>
-                <Button
-                  onClick={handleSeed}
-                  disabled={seeded}
-                  className={cn(
-                    'w-full font-bold',
-                    seeded
-                      ? 'bg-status-low/15 border border-status-low/35 text-status-low hover:bg-status-low/25'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/85 glow-amber'
-                  )}
-                >
-                  {seeded ? <Check className="w-4 h-4 mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                  {seeded ? 'Demo Data Seeded' : 'Seed Demo Data'}
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleSeedDynamoDB}
+                    disabled={seedLoading}
+                    className={cn(
+                      'w-full font-bold',
+                      seedLoading
+                        ? 'bg-primary/50 text-primary-foreground'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/85 glow-amber'
+                    )}
+                  >
+                    {seedLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    {seedLoading ? 'Seeding DynamoDB...' : 'Seed DynamoDB Demo Data'}
+                  </Button>
+                  <Button
+                    onClick={handleSeed}
+                    disabled={seeded}
+                    className={cn(
+                      'w-full font-bold',
+                      seeded
+                        ? 'bg-status-low/15 border border-status-low/35 text-status-low hover:bg-status-low/25'
+                        : 'bg-primary/10 border border-primary/25 text-primary hover:bg-primary/15'
+                    )}
+                  >
+                    {seeded ? <Check className="w-4 h-4 mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                    {seeded ? 'Local Demo Data Seeded' : 'Seed Local Demo Data'}
+                  </Button>
+                </div>
                 <Button
                   onClick={handleClear}
                   variant="ghost"
@@ -147,7 +212,7 @@ export default function SettingsPage() {
                   Clear Local Demo Data
                 </Button>
                 <div className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                  Clearing data only resets local mock state. No AWS changes will be made.
+                  "Seed DynamoDB" writes real events to AWS. "Seed Local" uses mock data. Clearing only affects local state.
                 </div>
               </div>
             </div>
