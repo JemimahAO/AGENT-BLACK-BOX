@@ -1,10 +1,10 @@
 # AgentBlackbox
 
-**Replay the failure. Prove the truth.**
+**The event ledger for AI agents.**
 
-AgentBlackbox is a B2B AI-agent governance, observability, and audit platform built for the **H0 Hackathon: Hack the Zero Stack with Vercel v0 and AWS Databases**.
+AgentBlackbox is an AI-agent governance, observability, and audit platform. It works like a **flight recorder for existing AI agents**. Companies can connect their already-built agents and record every run, memory read, tool call, policy check, approval request, blocked action, human decision, final action, and memory update into a replayable event ledger.
 
-It works like a **flight recorder for existing AI agents**. Companies can connect their already-built agents and record every run, memory read, tool call, policy check, approval request, blocked action, human decision, final action, and memory update into a replayable event ledger.
+**Record, replay, and govern autonomous agent actions before they become production incidents.**
 
 AgentBlackbox is not an AI agent builder. It is the monitoring, audit, replay, and governance layer for autonomous AI systems.
 

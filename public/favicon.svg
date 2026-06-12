@@ -1,0 +1,14 @@
+<!-- Favicon SVG for AgentBlackbox -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="32" height="32" rx="8" fill="#0a0e17" stroke="#ff8a00" stroke-width="1.5"/>
+  <!-- Hexagon outer -->
+  <path d="M16 4 L22 8 L22 16 L16 20 L10 16 L10 8 Z" fill="none" stroke="#ff8a00" stroke-width="1.5" opacity="0.8"/>
+  <!-- Hexagon inner -->
+  <path d="M16 8 L20 11 L20 16 L16 19 L12 16 L12 11 Z" fill="none" stroke="#ff8a00" stroke-width="1"/>
+  <!-- Fingerprint on left -->
+  <path d="M13 12 Q12 13 12 15 Q12 17 13 18" fill="none" stroke="#ff8a00" stroke-width="0.8" opacity="0.6"/>
+  <!-- Circuit on right -->
+  <circle cx="18" cy="14" r="0.5" fill="#ff8a00"/>
+  <path d="M18 14 L19 14" stroke="#ff8a00" stroke-width="0.8" opacity="0.6"/>
+</svg>

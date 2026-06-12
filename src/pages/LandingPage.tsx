@@ -112,8 +112,12 @@ export default function LandingPage() {
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="relative w-8 h-8 rounded-lg bg-primary/15 border border-primary/35 flex items-center justify-center glow-amber">
-              <Shield className="w-3.5 h-3.5 text-primary" />
+            <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-primary/25 to-primary/10 border border-primary/35 flex items-center justify-center glow-amber" style={{ background: 'linear-gradient(135deg, rgba(255,138,0,0.25) 0%, rgba(255,138,0,0.1) 100%)' }}>
+              {/* Hexagon emblem */}
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
+                <path d="M10 2 L16 6 L16 14 L10 18 L4 14 L4 6 Z" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.8"/>
+                <path d="M10 6 L14 9 L14 14 L10 17 L6 14 L6 9 Z" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
+              </svg>
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive rec-blink border border-background" />
             </div>
             <span className="text-sm font-bold text-foreground tracking-wide">AgentBlackbox</span>
@@ -462,12 +466,12 @@ export default function LandingPage() {
           style={{ background: 'radial-gradient(ellipse 60% 80% at 50% 50%, rgba(255,138,0,0.07) 0%, transparent 70%)' }} />
         <div className="relative max-w-3xl mx-auto px-4 md:px-6 text-center">
           <h2 className="text-3xl md:text-5xl font-bold mb-5 text-balance">
-            <span className="text-gradient-amber">Replay the failure.</span>
+            <span className="text-gradient-amber">The event ledger</span>
             <br />
-            <span className="text-foreground">Prove the truth.</span>
+            <span className="text-foreground">for AI agents.</span>
           </h2>
           <p className="text-muted-foreground mb-10 text-lg text-pretty leading-relaxed">
-            Start monitoring, auditing, and governing your AI agents in minutes. Connect any existing agent with our SDK and get a complete event ledger from day one.
+            Record, replay, and govern autonomous agent actions before they become production incidents. Connect any agent with the AgentBlackbox SDK and get immutable audit trails powered by Amazon DynamoDB.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-10 glow-amber-strong">

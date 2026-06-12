@@ -36,8 +36,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
       {/* Logo */}
       <div className="relative flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-        <div className="relative w-9 h-9 rounded-lg bg-primary/15 border border-primary/35 flex items-center justify-center shrink-0 glow-amber">
-          <Shield className="w-4.5 h-4.5 text-primary" />
+        <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-primary/25 to-primary/10 border border-primary/35 flex items-center justify-center shrink-0 glow-amber">
+          {/* Hexagon emblem SVG */}
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary w-4.5 h-4.5">
+            <path d="M10 2 L16 6 L16 14 L10 18 L4 14 L4 6 Z" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.8"/>
+            <path d="M10 6 L14 9 L14 14 L10 17 L6 14 L6 9 Z" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
+          </svg>
           {/* REC indicator */}
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-destructive rec-blink border-2 border-sidebar" />
         </div>
