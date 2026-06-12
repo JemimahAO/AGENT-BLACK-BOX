@@ -24,4 +24,8 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: ["sb-6m5purqi3dvl.vercel.run"],
   },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+  },
 });
