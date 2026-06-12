@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithUsername = async (username: string, password: string) => {
     try {
-      const email = `${username}@miaoda.com`;
+      const email = `${username}@agentblackbox.io`;
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithUsername = async (username: string, password: string) => {
     try {
-      const email = `${username}@miaoda.com`;
+      const email = `${username}@agentblackbox.io`;
       const { error } = await supabase.auth.signUp({
         email,
         password,
