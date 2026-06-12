@@ -129,7 +129,7 @@ importers:
         specifier: ^0.576.0
         version: 0.576.0(react@18.3.1)
       miaoda-auth-react:
-        specifier: ^2.0.6
+        specifier: 2.0.6
         version: 2.0.6(@supabase/supabase-js@2.103.1)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.9.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
       miaoda-sc-plugin:
         specifier: 1.0.61
@@ -3596,7 +3596,7 @@ packages:
     engines: {node: '>=8'}
 
   wrap-ansi@7.0.0:
-    resolution: {integrity: sha1-Z+FFz/UQpqaYS98RUpEdadLrnkM=}
+    resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
     engines: {node: '>=10'}
 
   wrap-ansi@8.1.0:
