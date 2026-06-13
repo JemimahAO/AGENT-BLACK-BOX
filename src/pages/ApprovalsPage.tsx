@@ -82,11 +82,11 @@ export default function ApprovalsPage() {
           ))}
         </div>
 
-        {pendingCount > 0 && (
+        {stats.pending > 0 && (
           <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/8 px-4 py-3 glow-amber">
             <AlertTriangle className="w-4 h-4 text-primary shrink-0" />
             <p className="text-sm text-foreground">
-              <span className="font-bold text-primary">{pendingCount} approval{pendingCount > 1 ? 's' : ''} awaiting decision</span>
+              <span className="font-bold text-primary">{stats.pending} approval{stats.pending > 1 ? 's' : ''} awaiting decision</span>
               {' '}— high-risk agent actions are blocked, pending human review.
             </p>
           </div>
@@ -106,9 +106,9 @@ export default function ApprovalsPage() {
               )}
             >
               {tab}
-              {tab === 'Pending' && pendingCount > 0 && (
+              {tab === 'Pending' && stats.pending > 0 && (
                 <span className="ml-1.5 min-w-[18px] h-[18px] rounded-full bg-primary/20 text-primary text-[9px] inline-flex items-center justify-center px-1 font-black">
-                  {pendingCount}
+                  {stats.pending}
                 </span>
               )}
             </button>
@@ -118,7 +118,7 @@ export default function ApprovalsPage() {
         {/* Approval Cards */}
         <div className="space-y-3">
           {filtered.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground text-sm">No approvals in this category.</div>
+            <div className="text-center py-16 text-muted-foreground text-sm">No approvals found for this filter.</div>
           )}
           {filtered.map((approval) => (
             <ApprovalCard
