@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { RiskBadge, StatusBadge } from '@/components/ui/Badges';
 import { mockApprovals } from '@/lib/mock/approvals';
+import { computeApprovalStats } from '@/lib/approvals';
 import type { ApprovalRequest } from '@/lib/types';
 import { useAppStatus } from '@/contexts/AppStatusContext';
 import {
@@ -32,9 +33,8 @@ export default function ApprovalsPage() {
           : a
       )
     );
-    const newPending = approvals.filter(a => a.status === 'PENDING').length - 1;
-    setPendingApprovalsCount(newPending);
-    toast.success('Approval granted', { description: 'Decision logged to event ledger.' });
+    setPendingApprovalsCount((prev) => Math.max(0, prev - 1));
+    toast.success('Approval approved', { description: 'Decision logged to event ledger.' });
   };
 
   const handleDeny = (approvalId: string) => {
@@ -45,8 +45,7 @@ export default function ApprovalsPage() {
           : a
       )
     );
-    const newPending = approvals.filter(a => a.status === 'PENDING').length - 1;
-    setPendingApprovalsCount(newPending);
+    setPendingApprovalsCount((prev) => Math.max(0, prev - 1));
     toast.error('Approval denied', { description: 'Decision logged to event ledger.' });
   };
 
@@ -58,7 +57,8 @@ export default function ApprovalsPage() {
     return true;
   });
 
-  const pendingCount = Math.max(status.pendingApprovalsCount, approvals.filter((a) => a.status === 'PENDING').length);
+  // Compute stats dynamically from current approvals
+  const stats = useMemo(() => computeApprovalStats(approvals), [approvals]);
 
   return (
     <AppLayout>
@@ -66,9 +66,9 @@ export default function ApprovalsPage() {
         {/* Header Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Pending', count: pendingCount, color: 'text-primary', bg: 'bg-primary/8 border-primary/25', icon: Clock, glow: 'glow-amber' },
-            { label: 'Approved (7d)', count: approvals.filter(a => a.status === 'APPROVED').length, color: 'text-status-low', bg: 'bg-status-low/8 border-status-low/22', icon: CheckCircle, glow: 'glow-green' },
-            { label: 'Denied (7d)', count: approvals.filter(a => a.status === 'DENIED').length, color: 'text-destructive', bg: 'bg-destructive/8 border-destructive/22', icon: XCircle, glow: 'glow-red' },
+            { label: 'Pending', count: stats.pending, color: 'text-primary', bg: 'bg-primary/8 border-primary/25', icon: Clock, glow: 'glow-amber' },
+            { label: 'Approved (7d)', count: stats.approved, color: 'text-status-low', bg: 'bg-status-low/8 border-status-low/22', icon: CheckCircle, glow: 'glow-green' },
+            { label: 'Denied (7d)', count: stats.denied, color: 'text-destructive', bg: 'bg-destructive/8 border-destructive/22', icon: XCircle, glow: 'glow-red' },
           ].map(({ label, count, color, bg, icon: Icon, glow }) => (
             <div key={label} className={cn('rounded-xl border p-4 flex items-center gap-3 h-full glass-card', bg, glow)}>
               <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center border shrink-0', bg)}>

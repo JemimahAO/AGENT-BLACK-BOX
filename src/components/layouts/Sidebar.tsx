@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -11,17 +11,8 @@ import {
   Activity,
   RadioTower,
 } from 'lucide-react';
+import { computePendingApprovalsCount, getApprovalsDataSource } from '@/lib/approvals';
 import { cn } from '@/lib/utils';
-
-const navItems = [
-  { label: 'Command Center', path: '/command-center', icon: LayoutDashboard },
-  { label: 'Run Replay', path: '/run-replay', icon: Play },
-  { label: 'Approvals', path: '/approvals', icon: CheckSquare, badge: 12 },
-  { label: 'Integrations', path: '/integrations', icon: Plug },
-  { label: 'Reports', path: '/reports', icon: FileText },
-  { label: 'Database Architecture', path: '/database-architecture', icon: Database },
-  { label: 'Settings', path: '/settings', icon: Settings },
-];
 
 interface SidebarProps {
   onClose?: () => void;
@@ -29,6 +20,22 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const location = useLocation();
+  
+  // Compute pending approvals count dynamically
+  const pendingApprovalsCount = useMemo(() => {
+    const approvals = getApprovalsDataSource();
+    return computePendingApprovalsCount(approvals);
+  }, []);
+  
+  const navItems = [
+    { label: 'Command Center', path: '/command-center', icon: LayoutDashboard },
+    { label: 'Run Replay', path: '/run-replay', icon: Play },
+    { label: 'Approvals', path: '/approvals', icon: CheckSquare, badge: pendingApprovalsCount || undefined },
+    { label: 'Integrations', path: '/integrations', icon: Plug },
+    { label: 'Reports', path: '/reports', icon: FileText },
+    { label: 'Database Architecture', path: '/database-architecture', icon: Database },
+    { label: 'Settings', path: '/settings', icon: Settings },
+  ];
 
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border relative overflow-hidden">
