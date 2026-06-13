@@ -25,6 +25,7 @@ import {
   Code2,
   Gauge,
   Activity,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -177,12 +178,15 @@ export default function RunReplayPage() {
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [auditGenerated, setAuditGenerated] = useState(false);
+  const [liveEmptyState, setLiveEmptyState] = useState(false);
+  const [seedingData, setSeedingData] = useState(false);
   const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch live events from API
   useEffect(() => {
     const fetchEvents = async () => {
       setIsLoadingEvents(true);
+      setLiveEmptyState(false);
       try {
         const response = await fetch(`/api/events?runId=${runIdParam}`);
         if (response.ok) {
@@ -196,24 +200,87 @@ export default function RunReplayPage() {
             }));
             setEvents(transformedEvents);
             setIsLiveMode(true);
+            setLiveEmptyState(false);
             setLatestRunId(runIdParam);
             recordSuccessfulWrite(runIdParam, transformedEvents.length);
+          } else if (status.isDynamoConnected && status.dataMode === 'live') {
+            // Live mode is connected, but no events for this run
+            setIsLiveMode(true);
+            setLiveEmptyState(true);
+            setEvents([]);
           } else {
+            // Fall back to mock mode if live mode failed or not connected
             setIsLiveMode(false);
+            setLiveEmptyState(false);
           }
+        } else {
+          // API error - fallback to mock
+          setIsLiveMode(false);
+          setLiveEmptyState(false);
         }
       } catch (error) {
         setIsLiveMode(false);
+        setLiveEmptyState(false);
       } finally {
         setIsLoadingEvents(false);
       }
     };
 
     fetchEvents();
-  }, [runIdParam, setLatestRunId, recordSuccessfulWrite]);
+  }, [runIdParam, setLatestRunId, recordSuccessfulWrite, status.isDynamoConnected, status.dataMode]);
 
   const selectedEvent = events[selectedIdx];
   const eventDuration = selectedEvent?.duration ? `${selectedEvent.duration}ms` : (selectedEvent ? getFieldValue(selectedEvent, 'duration') : '0ms');
+
+  const handleSeedDemoIncident = async () => {
+    setSeedingData(true);
+    try {
+      const response = await fetch('/api/seed', { method: 'POST' });
+      const data = await response.json();
+      if (data.ok) {
+        recordSuccessfulWrite(data.runId, data.seeded);
+        // Refetch events for the default run
+        const eventsResponse = await fetch(`/api/events?runId=run_8f3a1a2b`);
+        if (eventsResponse.ok) {
+          const eventsData = await eventsResponse.json();
+          if (eventsData.ok && eventsData.events && eventsData.events.length > 0) {
+            const transformedEvents = eventsData.events.map((evt: any) => ({
+              ...evt,
+              label: evt.eventType?.replace(/_/g, ' ') || evt.label,
+              description: evt.detail || evt.message || '',
+              duration: 0,
+            }));
+            setEvents(transformedEvents);
+            setLiveEmptyState(false);
+            setIsLiveMode(true);
+          }
+        }
+        toast.success('Demo incident seeded', { description: `${data.seeded} events written to DynamoDB` });
+      }
+    } catch (error) {
+      toast.error('Failed to seed demo data');
+    } finally {
+      setSeedingData(false);
+    }
+  };
+
+  const handleRunConnectedDemo = async () => {
+    setSeedingData(true);
+    try {
+      const response = await fetch('/api/agents/refund-demo', { method: 'POST' });
+      const data = await response.json();
+      if (data.ok) {
+        recordSuccessfulWrite(data.runId, data.eventsCreated);
+        // Navigate to the new run
+        window.location.href = `/run-replay?runId=${data.runId}`;
+        toast.success('Connected agent demo completed', { description: `${data.eventsCreated} events created` });
+      }
+    } catch (error) {
+      toast.error('Failed to run connected agent demo');
+    } finally {
+      setSeedingData(false);
+    }
+  };
 
   const handleReplayRun = () => {
     if (isReplaying) {
@@ -376,6 +443,54 @@ export default function RunReplayPage() {
             </div>
           </div>
         </div>
+
+        {/* Empty Live State */}
+        {liveEmptyState && events.length === 0 && (
+          <div className="rounded-xl border border-status-low/25 bg-status-low/4 p-8 text-center space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-foreground">No live events found</h3>
+              <p className="text-sm text-muted-foreground">
+                DynamoDB is connected, but this run has no recorded events yet. Seed the demo incident or run the connected agent demo to populate the ledger.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <Button
+                onClick={handleSeedDemoIncident}
+                disabled={seedingData}
+                className="bg-status-low text-background hover:bg-status-low/85 font-bold"
+              >
+                {seedingData ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />
+                    Seeding...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Seed Demo Incident
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleRunConnectedDemo}
+                disabled={seedingData}
+                className="bg-primary text-primary-foreground hover:bg-primary/85 font-bold"
+              >
+                {seedingData ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Run Connected Agent Demo
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* 3-Column Forensic Layout */}
         <div className="grid grid-cols-3 gap-4 min-h-[600px]">

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Menu, Bell, HelpCircle, Search, Cpu } from 'lucide-react';
+import { Menu, Bell, HelpCircle, Search, Cpu, Database } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Sidebar } from './Sidebar';
+import { useAppStatus } from '@/contexts/AppStatusContext';
+import { cn } from '@/lib/utils';
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string; tag?: string }> = {
   '/command-center': {
@@ -36,6 +38,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string; tag?: strin
 
 export const Header: React.FC = () => {
   const location = useLocation();
+  const { status } = useAppStatus();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pageInfo = PAGE_TITLES[location.pathname] ?? { title: 'AgentBlackbox', subtitle: '' };
 
@@ -101,10 +104,27 @@ export const Header: React.FC = () => {
           className="hidden md:flex text-muted-foreground hover:bg-accent hover:text-foreground">
           <HelpCircle className="w-4 h-4" />
         </Button>
-        {/* AI status indicator */}
-        <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-status-healthy/8 border border-status-healthy/20 ml-1">
-          <Cpu className="w-3 h-3 text-status-healthy" />
-          <span className="text-[10px] text-status-healthy font-semibold">12 Active</span>
+        {/* Ledger status indicator */}
+        <div className={cn(
+          "hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md border ml-1",
+          status.isDynamoConnected && status.dataMode === 'live'
+            ? "bg-status-low/8 border-status-low/20"
+            : "bg-primary/8 border-primary/20"
+        )}>
+          <Database className={cn(
+            "w-3 h-3",
+            status.isDynamoConnected && status.dataMode === 'live'
+              ? "text-status-low"
+              : "text-primary"
+          )} />
+          <span className={cn(
+            "text-[10px] font-semibold",
+            status.isDynamoConnected && status.dataMode === 'live'
+              ? "text-status-low"
+              : "text-primary"
+          )}>
+            {status.isDynamoConnected && status.dataMode === 'live' ? 'Live Ledger' : 'Mock Fallback'}
+          </span>
         </div>
         <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-[10px] font-bold text-primary ml-1">
           AB

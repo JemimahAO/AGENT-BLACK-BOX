@@ -12,17 +12,21 @@ export interface AppStatus {
   pendingApprovalsCount: number;
   latestApiStatus: string | null;
   latestRunId: string | null;
+  tableName?: string;
+  region?: string;
+  isBootstrapped: boolean;
 }
 
 interface AppStatusContextType {
   status: AppStatus;
-  updateConnectionStatus: (connected: boolean, mode: DataMode) => void;
+  updateConnectionStatus: (connected: boolean, mode: DataMode, tableName?: string, region?: string) => void;
   recordSuccessfulWrite: (runId: string, eventsCount: number) => void;
   recordConnectionCheck: () => void;
   setPendingApprovalsCount: (count: number) => void;
   setLatestRunId: (runId: string) => void;
   setLatestApiStatus: (status: string) => void;
   reset: () => void;
+  performHealthCheck: () => Promise<void>;
 }
 
 const defaultStatus: AppStatus = {
@@ -35,19 +39,97 @@ const defaultStatus: AppStatus = {
   pendingApprovalsCount: 0,
   latestApiStatus: null,
   latestRunId: null,
+  tableName: undefined,
+  region: undefined,
+  isBootstrapped: false,
 };
 
 const AppStatusContext = createContext<AppStatusContextType | undefined>(undefined);
 
 export function AppStatusProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<AppStatus>(defaultStatus);
+  const [status, setStatus] = useState<AppStatus>(() => {
+    // Try to restore from localStorage on mount
+    try {
+      const cached = localStorage.getItem('agentblackbox_ledger_status');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          ...defaultStatus,
+          ...parsed,
+          lastSuccessfulConnectionCheck: parsed.lastSuccessfulConnectionCheck ? new Date(parsed.lastSuccessfulConnectionCheck) : null,
+          lastSuccessfulWrite: parsed.lastSuccessfulWrite ? new Date(parsed.lastSuccessfulWrite) : null,
+        };
+      }
+    } catch (e) {
+      console.log('[v0] Failed to restore cached ledger status');
+    }
+    return defaultStatus;
+  });
 
-  const updateConnectionStatus = useCallback((connected: boolean, mode: DataMode) => {
+  // Save status to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('agentblackbox_ledger_status', JSON.stringify({
+        isDynamoConnected: status.isDynamoConnected,
+        dataMode: status.dataMode,
+        lastSuccessfulConnectionCheck: status.lastSuccessfulConnectionCheck?.toISOString() ?? null,
+        lastSuccessfulWrite: status.lastSuccessfulWrite?.toISOString() ?? null,
+        lastSeededRunId: status.lastSeededRunId,
+        tableName: status.tableName,
+        region: status.region,
+      }));
+    } catch (e) {
+      console.log('[v0] Failed to save ledger status to localStorage');
+    }
+  }, [status]);
+
+  const performHealthCheck = useCallback(async () => {
+    try {
+      const response = await fetch('/api/health');
+      const data = await response.json();
+      
+      if (data.ok) {
+        setStatus((prev) => ({
+          ...prev,
+          isDynamoConnected: true,
+          dataMode: 'live',
+          lastSuccessfulConnectionCheck: new Date(),
+          tableName: data.table,
+          region: data.region,
+          isBootstrapped: true,
+        }));
+      } else {
+        setStatus((prev) => ({
+          ...prev,
+          isDynamoConnected: false,
+          dataMode: 'mock',
+          isBootstrapped: true,
+        }));
+      }
+    } catch (error) {
+      console.log('[v0] Health check failed:', error);
+      setStatus((prev) => ({
+        ...prev,
+        isDynamoConnected: false,
+        dataMode: 'mock',
+        isBootstrapped: true,
+      }));
+    }
+  }, []);
+
+  // Perform health check on mount
+  useEffect(() => {
+    performHealthCheck();
+  }, [performHealthCheck]);
+
+  const updateConnectionStatus = useCallback((connected: boolean, mode: DataMode, tableName?: string, region?: string) => {
     setStatus((prev) => ({
       ...prev,
       isDynamoConnected: connected,
       dataMode: mode,
       lastSuccessfulConnectionCheck: connected ? new Date() : prev.lastSuccessfulConnectionCheck,
+      tableName: tableName ?? prev.tableName,
+      region: region ?? prev.region,
     }));
   }, []);
 
@@ -90,6 +172,7 @@ export function AppStatusProvider({ children }: { children: React.ReactNode }) {
 
   const reset = useCallback(() => {
     setStatus(defaultStatus);
+    localStorage.removeItem('agentblackbox_ledger_status');
   }, []);
 
   return (
@@ -103,6 +186,7 @@ export function AppStatusProvider({ children }: { children: React.ReactNode }) {
         setLatestRunId,
         setLatestApiStatus,
         reset,
+        performHealthCheck,
       }}
     >
       {children}
