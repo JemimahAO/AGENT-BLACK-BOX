@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import {
 } from '@/lib/mock/reports';
 import { mockRuns } from '@/lib/mock/runs';
 import { mockLiveEvents } from '@/lib/mock/events';
+import { computePendingApprovalsCount, getApprovalsDataSource } from '@/lib/approvals';
 import {
   pickRandomAgent,
   pickRandomScenario,
@@ -97,6 +98,12 @@ export default function CommandCenterPage() {
   const [runs, setRuns] = useState<AgentRun[]>(mockRuns.slice(0, 8));
   const [metrics, setMetrics] = useState(mockCommandCenterMetrics);
   const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Compute pending approvals count dynamically
+  const pendingApprovalsCount = useMemo(() => {
+    const approvals = getApprovalsDataSource();
+    return computePendingApprovalsCount(approvals);
+  }, []);
 
   const runSimulationStep = useCallback(() => {
     const agent = pickRandomAgent();
@@ -284,11 +291,11 @@ export default function CommandCenterPage() {
           />
           <MetricCard
             title="Pending Approvals"
-            value={metrics.pendingApprovals}
-            delta={`▲ ${metrics.pendingApprovalsDelta} vs yesterday`}
+            value={pendingApprovalsCount}
+            delta={`Actual count from approval records`}
             icon={Clock}
             iconColor="bg-primary/15 border-primary/25 text-primary"
-            trend="up"
+            trend="neutral"
             glowClass="border-primary/15 glow-amber"
           />
           <MetricCard
