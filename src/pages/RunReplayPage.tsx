@@ -7,6 +7,8 @@ import { EventIcon } from '@/components/ui/EventIcon';
 import { mockReplayEvents } from '@/lib/mock/events';
 import type { TimelineEvent } from '@/lib/types';
 import { useAppStatus } from '@/contexts/AppStatusContext';
+import { useReports } from '@/contexts/ReportsContext';
+import { useSession } from '@/contexts/SessionContext';
 import {
   AlertTriangle,
   Play,
@@ -173,9 +175,28 @@ export default function RunReplayPage() {
   };
 
   const handleGenerateAudit = () => {
+    const { addReport } = useReports();
+    const { mode } = useSession();
+    
+    const newReport = {
+      reportId: 'report_' + Date.now().toString(36),
+      runId: runIdParam,
+      agentName: 'RefundAgent',
+      riskLevel: 'CRITICAL' as const,
+      eventCount: events.length,
+      policyViolations: 1,
+      blockedActions: 1,
+      humanDecisions: 1,
+      generatedAt: new Date().toISOString(),
+      dataMode: (mode || 'mock') as 'live' | 'mock',
+      summary: 'Refund request exceeded policy threshold and was escalated for human approval.',
+      events: events,
+    };
+    
+    addReport(newReport);
     setAuditGenerated(true);
     setShowAuditModal(true);
-    toast.success('Audit report generated', { description: 'Report ID: ' + 'report_' + Date.now().toString(36) });
+    toast.success('Audit report generated', { description: 'Report ID: ' + newReport.reportId });
   };
 
   return (
