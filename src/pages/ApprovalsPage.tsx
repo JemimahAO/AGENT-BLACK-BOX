@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RiskBadge, StatusBadge } from '@/components/ui/Badges';
 import { mockApprovals } from '@/lib/mock/approvals';
 import type { ApprovalRequest } from '@/lib/types';
+import { useAppStatus } from '@/contexts/AppStatusContext';
 import {
   CheckCircle,
   XCircle,
@@ -18,6 +19,7 @@ const STATUS_TABS = ['All', 'Pending', 'Approved', 'Denied'] as const;
 type Tab = typeof STATUS_TABS[number];
 
 export default function ApprovalsPage() {
+  const { status, setPendingApprovalsCount } = useAppStatus();
   const [approvals, setApprovals] = useState<ApprovalRequest[]>(mockApprovals);
   const [activeTab, setActiveTab] = useState<Tab>('All');
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -30,6 +32,8 @@ export default function ApprovalsPage() {
           : a
       )
     );
+    const newPending = approvals.filter(a => a.status === 'PENDING').length - 1;
+    setPendingApprovalsCount(newPending);
     toast.success('Approval granted', { description: 'Decision logged to event ledger.' });
   };
 
@@ -41,6 +45,8 @@ export default function ApprovalsPage() {
           : a
       )
     );
+    const newPending = approvals.filter(a => a.status === 'PENDING').length - 1;
+    setPendingApprovalsCount(newPending);
     toast.error('Approval denied', { description: 'Decision logged to event ledger.' });
   };
 
@@ -52,7 +58,7 @@ export default function ApprovalsPage() {
     return true;
   });
 
-  const pendingCount = approvals.filter((a) => a.status === 'PENDING').length;
+  const pendingCount = Math.max(status.pendingApprovalsCount, approvals.filter((a) => a.status === 'PENDING').length);
 
   return (
     <AppLayout>

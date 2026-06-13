@@ -3,10 +3,11 @@ import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import {
   Copy, Check, Code2, Zap, Activity, FileJson,
-  Send, CheckCircle,
+  Send, CheckCircle, Zap as ZapIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useAppStatus } from '@/contexts/AppStatusContext';
 
 const JS_SNIPPET = `import { AgentBlackbox } from '@agentblackbox/sdk';
 
@@ -75,11 +76,13 @@ const SUPPORTED_AGENTS = [
 const API_KEY = 'sk-blackbox-demo-xxxx-xxxx-x7f3a2b1c4d5';
 
 export default function IntegrationsPage() {
+  const { recordSuccessfulWrite, status } = useAppStatus();
   const [activeTab, setActiveTab] = useState<'javascript' | 'python'>('javascript');
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [lastEvent, setLastEvent] = useState<null | typeof EVENT_SCHEMA>(null);
   const [sending, setSending] = useState(false);
+  const [demoRunning, setDemoRunning] = useState(false);
 
   const copyKey = () => {
     setCopiedKey(true);
@@ -93,13 +96,55 @@ export default function IntegrationsPage() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const sendTestEvent = () => {
+  const sendTestEvent = async () => {
     setSending(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: 'demo',
+          runId: 'run_integration_test_' + Date.now(),
+          agentId: 'test-agent',
+          eventType: 'TOOL_CALLED',
+          action: 'ProcessRefund',
+          riskLevel: 'HIGH',
+          status: 'received',
+          payload: {
+            amount: 4800,
+            currency: 'USD',
+            orderId: 'A10293'
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        recordSuccessfulWrite('run_integration_test_' + Date.now(), 1);
+        setLastEvent(EVENT_SCHEMA);
+        toast.success('Test event received', { description: 'Event ingested into ledger · Timestamp: ' + new Date().toLocaleTimeString() });
+      }
+    } catch (error) {
+      toast.error('Failed to send test event', { description: error instanceof Error ? error.message : 'Unknown error' });
+    } finally {
       setSending(false);
-      setLastEvent(EVENT_SCHEMA);
-      toast.success('Test event received', { description: 'Event ingested into ledger · Timestamp: ' + new Date().toLocaleTimeString() });
-    }, 1200);
+    }
+  };
+
+  const runRefundDemo = async () => {
+    setDemoRunning(true);
+    try {
+      const response = await fetch('/api/agents/refund-demo', { method: 'POST' });
+      const data = await response.json();
+      if (data.ok) {
+        recordSuccessfulWrite(data.runId, 10);
+        toast.success('Demo completed', { description: `${data.eventsCreated} events from RefundAgent v2.7.4` });
+      }
+    } catch (error) {
+      toast.error('Demo failed', { description: error instanceof Error ? error.message : 'Unknown error' });
+    } finally {
+      setDemoRunning(false);
+    }
   };
 
   return (
@@ -217,6 +262,30 @@ export default function IntegrationsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Connected Agent Demo */}
+            <div className="rounded-xl border border-status-low/25 glass-card overflow-hidden bg-status-low/4">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-status-low/20">
+                <div className="live-dot" />
+                <h3 className="text-sm font-bold text-foreground">Connected Agent Demo</h3>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  Test a fully connected agent. RefundAgent v2.7.4 will process a refund request and generate 10 events in the ledger, including a policy violation and approval flow.
+                </div>
+                <Button
+                  onClick={runRefundDemo}
+                  disabled={demoRunning}
+                  className="w-full bg-status-low text-background hover:bg-status-low/85 font-bold"
+                >
+                  {demoRunning ? (
+                    <><div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin mr-2" />Running Demo...</>
+                  ) : (
+                    <><ZapIcon className="w-4 h-4 mr-2" />Run RefundAgent Demo</>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
