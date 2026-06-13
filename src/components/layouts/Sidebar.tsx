@@ -7,7 +7,7 @@ import {
   Plug,
   Database,
   Settings,
-  Shield,
+  FileText,
   Activity,
   RadioTower,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ const navItems = [
   { label: 'Run Replay', path: '/run-replay', icon: Play },
   { label: 'Approvals', path: '/approvals', icon: CheckSquare, badge: 12 },
   { label: 'Integrations', path: '/integrations', icon: Plug },
+  { label: 'Reports', path: '/reports', icon: FileText },
   { label: 'Database Architecture', path: '/database-architecture', icon: Database },
   { label: 'Settings', path: '/settings', icon: Settings },
 ];
