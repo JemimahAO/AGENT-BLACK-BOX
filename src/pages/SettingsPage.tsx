@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,30 +15,20 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useAppStatus } from '@/contexts/AppStatusContext';
 
 const ENV_VARS = [
-  { key: 'AWS_ACCESS_KEY_ID', status: 'MOCK', description: 'AWS IAM access key for DynamoDB SDK' },
-  { key: 'AWS_SECRET_ACCESS_KEY', status: 'MOCK', description: 'AWS IAM secret key' },
-  { key: 'AWS_REGION', status: 'SET', value: 'us-east-1', description: 'DynamoDB table region' },
-  { key: 'DYNAMODB_TABLE_NAME', status: 'SET', value: 'AgentBlackboxEvents', description: 'Primary event ledger table' },
-  { key: 'BLACKBOX_TENANT_ID', status: 'SET', value: 'demo', description: 'Default tenant identifier' },
-  { key: 'BLACKBOX_API_KEY', status: 'MOCK', description: 'Ingestion API authentication key' },
-];
-
-const API_ROUTES = [
-  { path: '/api/events', method: 'POST', description: 'Ingest new agent event', status: 'MOCK' },
-  { path: '/api/runs', method: 'GET', description: 'List agent runs with filters', status: 'MOCK' },
-  { path: '/api/runs/[runId]', method: 'GET', description: 'Fetch full run timeline', status: 'MOCK' },
-  { path: '/api/approvals', method: 'GET', description: 'Fetch approval queue', status: 'MOCK' },
-  { path: '/api/approvals/[id]', method: 'PATCH', description: 'Approve or deny request', status: 'MOCK' },
-  { path: '/api/reports', method: 'POST', description: 'Generate audit report', status: 'MOCK' },
-  { path: '/api/simulate', method: 'POST', description: 'Trigger simulation event', status: 'MOCK' },
+  { key: 'AWS_ACCESS_KEY_ID', description: 'AWS IAM access key for DynamoDB SDK' },
+  { key: 'AWS_SECRET_ACCESS_KEY', description: 'AWS IAM secret key' },
+  { key: 'AWS_REGION', value: 'us-east-1', description: 'DynamoDB table region' },
+  { key: 'DYNAMODB_TABLE_NAME', value: 'AgentBlackboxEvents', description: 'Primary event ledger table' },
+  { key: 'BLACKBOX_TENANT_ID', value: 'demo', description: 'Default tenant identifier' },
 ];
 
 export default function SettingsPage() {
+  const { status, updateConnectionStatus, recordSuccessfulWrite, setPendingApprovalsCount } = useAppStatus();
   const [seeded, setSeeded] = useState(false);
   const [cleared, setCleared] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [seedLoading, setSeedLoading] = useState(false);
 
@@ -47,15 +37,17 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/health');
       const data = await response.json();
-      setHealthStatus(data);
+      
       if (data.ok) {
-        toast.success('Connection successful', { description: `Connected to ${data.table} in ${data.region}` });
+        updateConnectionStatus(true, 'live');
+        toast.success('Live Ledger Active', { description: `Connected to ${data.table} in ${data.region}` });
       } else {
-        toast.info(data.error || 'Running in mock mode', { description: data.message });
+        updateConnectionStatus(false, 'mock');
+        toast.info('Mock Fallback Active', { description: 'Local demo data will be used' });
       }
     } catch (error) {
-      toast.error('Connection failed', { description: error instanceof Error ? error.message : String(error) });
-      setHealthStatus({ ok: false, mode: 'mock', error: 'Network error' });
+      updateConnectionStatus(false, 'mock');
+      toast.error('Connection failed', { description: 'Using mock fallback mode' });
     } finally {
       setHealthLoading(false);
     }
@@ -66,9 +58,14 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/seed', { method: 'POST' });
       const data = await response.json();
+      
       if (data.ok) {
+        recordSuccessfulWrite(data.runId, data.seeded);
+        updateConnectionStatus(true, 'live');
         setSeeded(true);
-        toast.success('Demo data seeded', { description: `${data.seeded} events loaded for run ${data.runId}` });
+        toast.success('Demo data seeded', { 
+          description: `${data.seeded} events written to DynamoDB for ${data.runId}` 
+        });
         setTimeout(() => setSeeded(false), 3000);
       } else {
         toast.info('Seed request sent', { description: data.message });
@@ -91,24 +88,51 @@ export default function SettingsPage() {
     setTimeout(() => setCleared(false), 3000);
   };
 
+  const isLive = status.isDynamoConnected && status.dataMode === 'live';
+  const statusTitle = isLive ? 'Live Ledger Active' : 'Mock Fallback Active';
+  const statusBadge = isLive ? 'LIVE' : 'MOCK';
+
   return (
     <AppLayout>
       <div className="p-4 md:p-6 space-y-5">
 
-        {/* Mock Mode Banner — Polished deployment console */}
-        <div className="relative rounded-xl border border-primary/35 overflow-hidden glow-amber">
-          <div className="h-0.5 bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/8 to-transparent pointer-events-none" />
+        {/* Mode Status Banner */}
+        <div className={cn(
+          "relative rounded-xl border overflow-hidden glow-amber",
+          isLive ? 'border-status-low/35' : 'border-primary/35'
+        )}>
+          <div className={cn(
+            "h-0.5 bg-gradient-to-r from-transparent to-transparent",
+            isLive ? 'via-status-low/60' : 'via-primary/60'
+          )} />
+          <div className={cn(
+            "absolute inset-0 pointer-events-none",
+            isLive ? 'bg-gradient-to-r from-status-low/8 to-transparent' : 'bg-gradient-to-r from-primary/8 to-transparent'
+          )} />
           <div className="relative flex flex-wrap items-center gap-3 px-4 py-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-md bg-primary/18 border border-primary/35 flex items-center justify-center">
-                <div className="w-2.5 h-2.5 rounded-full bg-primary rec-blink" />
+              <div className={cn(
+                "w-6 h-6 rounded-md border flex items-center justify-center",
+                isLive ? 'bg-status-low/18 border-status-low/35' : 'bg-primary/18 border-primary/35'
+              )}>
+                <div className={cn(
+                  "w-2.5 h-2.5 rounded-full rec-blink",
+                  isLive ? 'bg-status-low' : 'bg-primary'
+                )} />
               </div>
-              <span className="text-xs font-black text-primary tracking-wider">MOCK MODE ACTIVE</span>
+              <span className={cn(
+                "text-xs font-black tracking-wider",
+                isLive ? 'text-status-low' : 'text-primary'
+              )}>
+                {statusTitle}
+              </span>
             </div>
             <div className="w-px h-4 bg-primary/25 hidden md:block" />
             <span className="text-xs text-muted-foreground flex-1 min-w-0 text-pretty">
-              AgentBlackbox is running on local mock data. Configure real AWS credentials to enable live DynamoDB ingestion.
+              {isLive 
+                ? 'AgentBlackbox is connected to Amazon DynamoDB and can record live agent events.'
+                : 'Local demo data is being used because the live event ledger is unavailable.'
+              }
             </span>
           </div>
         </div>
@@ -127,13 +151,25 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-bold text-foreground">DynamoDB Connection</h3>
               </div>
               <div className="p-4 space-y-3.5">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-status-medium/25 bg-status-medium/6">
+                <div className={cn(
+                  "flex items-center justify-between p-3 rounded-lg border",
+                  isLive 
+                    ? 'bg-status-low/6 border-status-low/25' 
+                    : 'bg-status-medium/6 border-status-medium/25'
+                )}>
                   <div>
                     <div className="text-xs font-bold text-foreground">Connection Status</div>
-                    <div className="text-[10px] text-muted-foreground">Mock mode — not connected to AWS</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {isLive ? 'Connected to AWS DynamoDB' : 'Mock mode — not connected to AWS'}
+                    </div>
                   </div>
-                  <span className="text-[9px] font-black text-primary border border-primary/35 bg-primary/10 px-2 py-0.5 rounded tracking-widest">
-                    MOCK
+                  <span className={cn(
+                    "text-[9px] font-black border px-2 py-0.5 rounded tracking-widest",
+                    isLive 
+                      ? 'border-status-low/35 bg-status-low/10 text-status-low'
+                      : 'border-primary/35 bg-primary/10 text-primary'
+                  )}>
+                    {statusBadge}
                   </span>
                 </div>
 
@@ -141,13 +177,16 @@ export default function SettingsPage() {
                   {[
                     { label: 'Table Name', value: 'AgentBlackboxEvents' },
                     { label: 'AWS Region', value: 'us-east-1' },
-                    { label: 'GSI Count', value: '3 (Agent, Risk, Approval)' },
+                    { label: 'Partition Key', value: 'PK (TENANT#id)' },
+                    { label: 'Sort Key', value: 'SK (RUN#id#EVENT#ts)' },
                     { label: 'Billing Mode', value: 'PAY_PER_REQUEST' },
-                    { label: 'Last Write', value: healthStatus?.lastChecked ? new Date(healthStatus.lastChecked).toLocaleTimeString() : 'Never' },
+                    { label: 'Last Connection Check', value: status.lastSuccessfulConnectionCheck?.toLocaleTimeString() || 'Never' },
+                    { label: 'Last Write', value: status.lastSuccessfulWrite?.toLocaleTimeString() || 'Never' },
+                    { label: 'Seeded Run ID', value: status.lastSeededRunId || 'None' },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex justify-between gap-2 text-xs py-1.5 border-b border-border/20 last:border-0">
                       <span className="text-muted-foreground">{label}</span>
-                      <span className="text-foreground font-semibold mono text-right">{value}</span>
+                      <span className="text-foreground font-semibold mono text-right text-[11px]">{value}</span>
                     </div>
                   ))}
                 </div>
@@ -173,7 +212,7 @@ export default function SettingsPage() {
               </div>
               <div className="p-4 space-y-3">
                 <div className="text-xs text-muted-foreground leading-relaxed">
-                  Seed or reset the local demo data used in Command Center, Run Replay, and Approvals.
+                  Seed or reset the demo data used in Command Center, Run Replay, and Approvals.
                 </div>
                 <div className="space-y-2">
                   <Button
@@ -212,7 +251,7 @@ export default function SettingsPage() {
                   Clear Local Demo Data
                 </Button>
                 <div className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                  "Seed DynamoDB" writes real events to AWS. "Seed Local" uses mock data. Clearing only affects local state.
+                  "Seed DynamoDB" writes real events to AWS. "Seed Local" uses mock data only.
                 </div>
               </div>
             </div>
@@ -229,13 +268,13 @@ export default function SettingsPage() {
                   <span className="w-2 h-2 rounded-full bg-status-low/60" />
                 </div>
                 <Code2 className="w-3.5 h-3.5 text-secondary ml-1" />
-                <h3 className="text-xs font-bold text-foreground">.env.local</h3>
-                <span className="ml-auto text-[9px] border border-border bg-muted/40 px-1.5 py-0.5 rounded mono text-muted-foreground">Environment Variables</span>
+                <h3 className="text-xs font-bold text-foreground">.env</h3>
+                <span className="ml-auto text-[9px] border border-border bg-muted/40 px-1.5 py-0.5 rounded mono text-muted-foreground">Configuration</span>
               </div>
               <div className="code-console p-4 space-y-2.5">
                 {ENV_VARS.map((env) => (
                   <div key={env.key} className="flex items-start gap-3">
-                    {env.status === 'SET' ? (
+                    {env.value ? (
                       <CheckCircle className="w-3.5 h-3.5 text-status-low shrink-0 mt-0.5" />
                     ) : (
                       <XCircle className="w-3.5 h-3.5 text-status-medium shrink-0 mt-0.5" />
@@ -248,11 +287,6 @@ export default function SettingsPage() {
                             = "{env.value}"
                           </code>
                         )}
-                        {env.status === 'MOCK' && (
-                          <span className="text-[9px] font-bold text-primary border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded tracking-wider">
-                            MOCK
-                          </span>
-                        )}
                       </div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">{env.description}</div>
                     </div>
@@ -261,17 +295,22 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* API Route Checklist */}
+            {/* API Status */}
             <div className="rounded-xl border border-border glass-card overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border/60"
                 style={{ background: 'rgba(255,138,0,0.04)' }}>
                 <div className="w-7 h-7 rounded-lg bg-muted/60 border border-border flex items-center justify-center shrink-0">
                   <Globe className="w-4 h-4 text-primary" />
                 </div>
-                <h3 className="text-sm font-bold text-foreground">API Route Checklist</h3>
+                <h3 className="text-sm font-bold text-foreground">API Routes</h3>
               </div>
               <div className="p-4 space-y-2">
-                {API_ROUTES.map((route) => (
+                {[
+                  { path: '/api/health', method: 'GET', status: isLive ? 'LIVE' : 'MOCK', desc: 'Check DynamoDB connection' },
+                  { path: '/api/events', method: 'GET/POST', status: isLive ? 'LIVE' : 'MOCK', desc: 'Read/write agent events' },
+                  { path: '/api/seed', method: 'POST', status: isLive ? 'LIVE' : 'MOCK', desc: 'Seed demo events' },
+                  { path: '/api/agents/refund-demo', method: 'POST', status: isLive ? 'LIVE' : 'MOCK', desc: 'Connected agent demo' },
+                ].map((route) => (
                   <div key={route.path} className="flex items-start gap-3 py-1.5 border-b border-border/20 last:border-0">
                     <Activity className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
@@ -279,17 +318,21 @@ export default function SettingsPage() {
                         <span className={cn(
                           'text-[9px] font-black px-1.5 py-0.5 rounded border tracking-wider',
                           route.method === 'GET' ? 'bg-status-low/12 text-status-low border-status-low/25' :
-                          route.method === 'POST' ? 'bg-primary/12 text-primary border-primary/25' :
-                          'bg-status-medium/12 text-status-medium border-status-medium/25'
+                          'bg-primary/12 text-primary border-primary/25'
                         )}>
                           {route.method}
                         </span>
                         <code className="text-xs text-foreground mono">{route.path}</code>
-                        <span className="text-[9px] font-bold text-primary border border-primary/25 bg-primary/8 px-1.5 py-0.5 rounded tracking-wider">
-                          MOCK
+                        <span className={cn(
+                          'text-[9px] font-bold border px-1.5 py-0.5 rounded tracking-wider',
+                          route.status === 'LIVE'
+                            ? 'border-status-low/25 bg-status-low/8 text-status-low'
+                            : 'border-primary/25 bg-primary/8 text-primary'
+                        )}>
+                          {route.status}
                         </span>
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{route.description}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">{route.desc}</div>
                     </div>
                   </div>
                 ))}
