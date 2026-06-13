@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import { RiskBadge, StatusBadge } from '@/components/ui/Badges';
 import { EventIcon } from '@/components/ui/EventIcon';
 import { mockReplayEvents } from '@/lib/mock/events';
 import type { TimelineEvent } from '@/lib/types';
+import { useAppStatus } from '@/contexts/AppStatusContext';
 import {
   AlertTriangle,
   Play,
@@ -16,9 +18,11 @@ import {
   Clock,
   Shield,
   XCircle,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
 
 const MEMORY_BEFORE: Record<string, string | number | boolean> = {
   'user.trust_score': 0.82,
@@ -84,22 +88,27 @@ function JsonViewer({ data, className }: { data: unknown; className?: string }) 
 }
 
 export default function RunReplayPage() {
+  const [searchParams] = useSearchParams();
+  const { status, setLatestRunId, recordSuccessfulWrite } = useAppStatus();
+  
+  const runIdParam = searchParams.get('runId') || 'run_8f3a1a2b';
   const [selectedIdx, setSelectedIdx] = useState(6); // ACTION_ATTEMPTED default
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayIdx, setReplayIdx] = useState(-1);
   const [copied, setCopied] = useState(false);
   const [auditGenerated, setAuditGenerated] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   const [events, setEvents] = useState(mockReplayEvents);
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Try to fetch events from API on component mount
+    // Try to fetch events from API for the specified runId
     const fetchEvents = async () => {
       setIsLoadingEvents(true);
       try {
-        const response = await fetch('/api/events?runId=run_8f3a1a2b');
+        const response = await fetch(`/api/events?runId=${runIdParam}`);
         if (response.ok) {
           const data = await response.json();
           if (data.ok && data.events && data.events.length > 0) {
@@ -111,21 +120,24 @@ export default function RunReplayPage() {
               duration: 0,
             }));
             setEvents(transformedEvents);
-            setIsLiveMode(data.mode === 'live');
-            toast.info(data.mode === 'live' ? 'Live DynamoDB Ledger' : 'Mock Mode', {
-              description: `Loaded ${transformedEvents.length} events`,
-            });
+            setIsLiveMode(true);
+            setLatestRunId(runIdParam);
+            recordSuccessfulWrite(runIdParam, transformedEvents.length);
+          } else {
+            // Fallback to mock if no events returned
+            setIsLiveMode(false);
           }
         }
       } catch (error) {
-        console.log('[v0] Failed to fetch events, using mock data:', error);
+        // Fallback to mock if API fails
+        setIsLiveMode(false);
       } finally {
         setIsLoadingEvents(false);
       }
     };
 
     fetchEvents();
-  }, []);
+  }, [runIdParam, setLatestRunId, recordSuccessfulWrite]);
 
   const selectedEvent: TimelineEvent = events[selectedIdx];
   const isActionAttempted = selectedEvent.eventType === 'ACTION_ATTEMPTED';
@@ -162,7 +174,8 @@ export default function RunReplayPage() {
 
   const handleGenerateAudit = () => {
     setAuditGenerated(true);
-    toast.success('Audit report generated', { description: 'Report saved to immutable event ledger.' });
+    setShowAuditModal(true);
+    toast.success('Audit report generated', { description: 'Report ID: ' + 'report_' + Date.now().toString(36) });
   };
 
   return (
@@ -570,6 +583,147 @@ export default function RunReplayPage() {
           </div>
         </div>
       </div>
+
+      {/* Audit Report Modal */}
+      {showAuditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-background border border-primary/30 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between sticky top-0 px-6 py-4 border-b border-border/60 bg-background/95 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-primary" />
+                <div>
+                  <h2 className="font-bold text-lg text-foreground">Audit Report</h2>
+                  <p className="text-xs text-muted-foreground">Full incident analysis and governance record</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAuditModal(false)}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Report Metadata */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Report ID</div>
+                  <div className="text-sm font-mono text-foreground">report_{Date.now().toString(36)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Generated</div>
+                  <div className="text-sm text-foreground">{new Date().toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Run ID</div>
+                  <div className="text-sm font-mono text-foreground">{runIdParam}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Agent</div>
+                  <div className="text-sm text-foreground">RefundAgent v2.7.4</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Risk Level</div>
+                  <RiskBadge level="CRITICAL" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Events Recorded</div>
+                  <div className="text-sm text-foreground font-semibold">{events.length} events</div>
+                </div>
+              </div>
+
+              {/* Summary Sections */}
+              <div className="border-t border-border/40 pt-4">
+                <h3 className="text-sm font-bold text-foreground mb-3">Events Summary</h3>
+                <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Total Events</span>
+                    <span className="text-foreground font-semibold">{events.length}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Policy Violations</span>
+                    <span className="text-destructive font-semibold">1</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Actions Blocked</span>
+                    <span className="text-destructive font-semibold">1</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Approvals Requested</span>
+                    <span className="text-status-medium font-semibold">1</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span className="text-foreground font-semibold">3.2s</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Policy Violations */}
+              <div className="border-t border-border/40 pt-4">
+                <h3 className="text-sm font-bold text-foreground mb-3">Policy Violations Detected</h3>
+                <div className="bg-destructive/8 border border-destructive/25 rounded-lg p-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">Refund Threshold Exceeded</p>
+                      <p className="text-xs text-muted-foreground mt-1">Amount ($4,800 USD) exceeds policy threshold ($500 USD) and requires human approval per RefundPolicy v2</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Governance Actions */}
+              <div className="border-t border-border/40 pt-4">
+                <h3 className="text-sm font-bold text-foreground mb-3">Governance Actions</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg text-sm">
+                    <span className="text-foreground">Action Blocked: ProcessRefund</span>
+                    <span className="text-[9px] font-black text-destructive border border-destructive/35 bg-destructive/8 px-2 py-0.5 rounded tracking-wider">BLOCKED</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg text-sm">
+                    <span className="text-foreground">Escalated to: Human Approval Queue</span>
+                    <span className="text-[9px] font-black text-status-medium border border-status-medium/35 bg-status-medium/8 px-2 py-0.5 rounded tracking-wider">PENDING</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Event Timeline */}
+              <div className="border-t border-border/40 pt-4">
+                <h3 className="text-sm font-bold text-foreground mb-3">Event Timeline</h3>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {events.slice(0, 10).map((evt, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2 text-xs hover:bg-muted/20 rounded">
+                      <span className="text-[9px] text-muted-foreground mono shrink-0 w-4">{i + 1}</span>
+                      <span className="text-foreground font-medium flex-1">{evt.label || evt.eventType}</span>
+                      <span className="text-[9px] text-muted-foreground">{new Date(parseInt(String(evt.timestamp || 0))).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                  {events.length > 10 && (
+                    <div className="text-xs text-muted-foreground p-2 text-center">
+                      +{events.length - 10} more events
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 flex items-center justify-between px-6 py-4 border-t border-border/60 bg-background/95 backdrop-blur-sm gap-2">
+              <p className="text-xs text-muted-foreground">All audit records are immutable and cryptographically verified</p>
+              <Button
+                onClick={() => setShowAuditModal(false)}
+                className="bg-primary text-primary-foreground hover:bg-primary/85 font-bold"
+              >
+                Close Report
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

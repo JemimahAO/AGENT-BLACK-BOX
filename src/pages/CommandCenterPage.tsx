@@ -216,7 +216,7 @@ export default function CommandCenterPage() {
                     Investigate
                   </Button>
                   <Button asChild size="sm" variant="ghost" className="border border-destructive/30 text-destructive hover:bg-destructive/10">
-                    <Link to="/run-replay">
+                    <Link to="/run-replay?runId=run_dataexfil_critical">
                       <Play className="w-3.5 h-3.5 mr-1.5" />
                       Replay
                     </Link>
@@ -354,7 +354,7 @@ export default function CommandCenterPage() {
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
                         <Button asChild variant="ghost" size="sm" className="text-xs text-primary hover:bg-primary/12 h-7 px-2 opacity-70 group-hover:opacity-100 font-semibold">
-                          <Link to="/run-replay">Replay <ChevronRight className="w-3 h-3 ml-0.5" /></Link>
+                          <Link to={`/run-replay?runId=${run.runId}`}>Replay <ChevronRight className="w-3 h-3 ml-0.5" /></Link>
                         </Button>
                       </td>
                     </tr>
